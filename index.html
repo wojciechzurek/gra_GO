@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8"></meta>
+		<title>GRA GO</title>
+		<style>
+			#canvas
+			{
+				padding: 0;
+				margin: auto;
+				display: block;
+				position: absolute;
+				top: 0;
+				bottom: 0;
+				left: 0;
+				right: 0;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" style="border: 2px solid black"></canvas>
+		<script>
+			(
+				function()
+				{
+					var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+					window.requestAnimationFrame = requestAnimationFrame;
+				}
+			)();
+
+			var BLOCK_SIZE = 40;
+
+			class Plansza
+			{
+				constructor(w, h, canvas)
+				{
+					var self = this;
+
+					this.w = w;
+					this.h = h;
+					canvas.width = (w+1)*BLOCK_SIZE;
+					canvas.height = (h+1)*BLOCK_SIZE;
+					this.ctx = canvas.getContext("2d");
+					this.ctx.strokeStyle = "#000000FF";
+
+					function getMousePos(canvas, evt)
+					{
+						var rect = canvas.getBoundingClientRect();
+						return {
+							x: evt.clientX - rect.left,
+							y: evt.clientY - rect.top
+						};
+					}
+
+					this.plansza = new Array();
+
+					for (var i = 0; i < w; i++)
+					{
+						this.plansza[i] = new Array();
+						for (var j = 0; j < h; j++)
+							this.plansza[i][j] = new Pole(i*BLOCK_SIZE, j*BLOCK_SIZE, this.ctx);
+					}
+
+					this.lastHoverI = -1;
+					this.lastHoverJ = -1;
+					
+					canvas.addEventListener('click', on_mouse_click, true);
+					canvas.addEventListener('mousemove', on_mouse_move, true);
+
+					function on_mouse_click(ev)
+					{
+						var mousePos = getMousePos(canvas, ev);
+						//console.log('Mouse position: ' + mousePos.x + ',' + mousePos.y);
+
+						for (var i = 0; i < w; i++)
+						{
+							for (var j = 0; j < h; j++)
+							{
+								var pole = self.plansza[i][j].getStartPoint();
+								if (mousePos.x >= pole.x && mousePos.x <= pole.x+BLOCK_SIZE &&
+									mousePos.y >= pole.y && mousePos.y <= pole.y+BLOCK_SIZE)
+								{
+									console.log("POLE "+i+", "+j);
+									self.plansza[i][j].setClicked(true);
+									break;
+								}
+							}
+						}
+						self.rysujPlansze();
+					}
+					
+					function on_mouse_move(ev)
+					{
+						var out = true;
+						var mousePos = getMousePos(canvas, ev);
+						//console.log('Mouse position: ' + mousePos.x + ',' + mousePos.y);
+
+						for (var i = 0; i < w; i++)
+						{
+							for (var j = 0; j < h; j++)
+							{
+								var pole = self.plansza[i][j].getStartPoint();
+								if (mousePos.x >= pole.x && mousePos.x <= pole.x+BLOCK_SIZE &&
+									mousePos.y >= pole.y && mousePos.y <= pole.y+BLOCK_SIZE)
+								{
+									out = false;
+									self.lastHoverI = i;
+									self.lastHoverJ = j;
+									break;
+								}
+							}
+						}
+						
+						if (out)
+						{
+							self.lastHoverI = -1;
+							self.lastHoverJ = -1;
+						}
+
+						self.rysujPlansze();
+					}
+				}
+				
+				rysujPlansze()
+				{
+					this.ctx.clearRect(0, 0, (this.w+1)*BLOCK_SIZE, (this.h+1)*BLOCK_SIZE);
+					for (var i = 0; i < this.w; i++)
+						for (var j = 0; j < this.h; j++)
+							this.plansza[i][j].rysujPole(this.lastHoverI==i&&this.lastHoverJ==j);
+
+					for (var i = 0; i < this.w; i++)
+					{
+						this.ctx.beginPath();
+						this.ctx.moveTo(BLOCK_SIZE+(BLOCK_SIZE*i), 0);
+						this.ctx.lineTo(BLOCK_SIZE+(BLOCK_SIZE*i), BLOCK_SIZE/2);
+						this.ctx.stroke();
+						this.ctx.closePath();
+						
+						this.ctx.beginPath();
+						this.ctx.moveTo(BLOCK_SIZE+(BLOCK_SIZE*i), this.h*BLOCK_SIZE+(BLOCK_SIZE/2));
+						this.ctx.lineTo(BLOCK_SIZE+(BLOCK_SIZE*i), this.h*BLOCK_SIZE+BLOCK_SIZE);
+						this.ctx.stroke();
+						this.ctx.closePath();
+					}
+
+					for (var i = 0; i < this.h; i++)
+					{
+						this.ctx.beginPath();
+						this.ctx.moveTo(0, BLOCK_SIZE+BLOCK_SIZE*i);
+						this.ctx.lineTo(BLOCK_SIZE/2, BLOCK_SIZE+BLOCK_SIZE*i);
+						this.ctx.stroke();
+						this.ctx.closePath();
+
+						this.ctx.beginPath();
+						this.ctx.moveTo(this.w*BLOCK_SIZE+(BLOCK_SIZE/2), BLOCK_SIZE+BLOCK_SIZE*i);
+						this.ctx.lineTo(this.w*BLOCK_SIZE+BLOCK_SIZE, BLOCK_SIZE+BLOCK_SIZE*i);
+						this.ctx.stroke();
+						this.ctx.closePath();
+					}
+				}
+
+				info()
+				{
+					console.log("Width: " + this.width + " Height: " + this.height);
+				}
+			}
+			
+			class Pole
+			{
+				constructor(x, y, ctx)
+				{
+					this.x = x;
+					this.y = y;
+					this.ctx = ctx;
+					this.clicked = false;
+					console.log("Tworze pole ("+x+","+y+") ("+this.getStartPoint().x+", "+this.getStartPoint().y+")");
+				}
+				
+				rysujPole(hover)
+				{
+					this.ctx.beginPath();
+					this.ctx.moveTo(BLOCK_SIZE+this.x, (BLOCK_SIZE/2)+this.y);
+					this.ctx.lineTo(BLOCK_SIZE+this.x, (BLOCK_SIZE/2)+BLOCK_SIZE+this.y);
+					this.ctx.stroke();
+					this.ctx.closePath();
+					
+					this.ctx.beginPath();
+					this.ctx.moveTo((BLOCK_SIZE/2)+this.x, BLOCK_SIZE+this.y);
+					this.ctx.lineTo((BLOCK_SIZE/2)+BLOCK_SIZE+this.x, BLOCK_SIZE+this.y);
+					this.ctx.stroke();
+					this.ctx.closePath();
+
+					if (this.clicked)
+					{
+						this.ctx.beginPath();
+						this.ctx.arc(this.x+BLOCK_SIZE,this.y+BLOCK_SIZE,15,0,2*Math.PI);
+						this.ctx.fill();
+						this.ctx.closePath();
+					}
+					else if (hover)
+					{
+						this.ctx.beginPath();
+						this.ctx.fillStyle = '#00000099';
+						this.ctx.arc(this.x+BLOCK_SIZE,this.y+BLOCK_SIZE,15,0,2*Math.PI);
+						this.ctx.fill();
+						this.ctx.closePath();
+						this.ctx.fillStyle = '#000000';
+					}
+				}
+
+				setClicked(arg)
+				{
+					this.clicked = arg;
+				}
+				
+				getStartPoint()
+				{
+					return {
+						x: (BLOCK_SIZE/2)+this.x,
+						y: (BLOCK_SIZE/2)+this.y
+					};
+				}
+			}
+			
+			var plansza = new Plansza(5, 5, document.getElementById("canvas"));
+			
+			function update()
+			{
+				plansza.rysujPlansze();
+				//window.requestAnimationFrame(update);
+			}
+			
+			window.addEventListener("load",
+				function()
+				{
+					update();
+				}
+			);
+		</script>
+	</body>
+</html>
